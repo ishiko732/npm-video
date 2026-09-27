@@ -3,6 +3,13 @@ import {cachedFetch} from "../src/lib/cached-fetch.ts";
 
 const originalFetch = globalThis.fetch;
 const originalNow = Date.now;
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+const stored = new Map();
+Object.defineProperty(globalThis, "localStorage", {configurable: true, value: {
+  getItem: key => stored.get(key) ?? null,
+  setItem: (key, value) => stored.set(key, value),
+  removeItem: key => stored.delete(key),
+}});
 let now = 1_000_000;
 let calls = 0;
 Date.now = () => now;
@@ -23,6 +30,9 @@ try {
   );
   await cachedFetch("https://example.com/data");
   assert.equal(calls, 1, "reuse fresh cache");
+  const {cachedFetch: afterReload} = await import("../src/lib/cached-fetch.ts?reload");
+  await afterReload("https://example.com/data");
+  assert.equal(calls, 1, "reuse persistent cache after module reload");
   now += 300_001;
   await cachedFetch("https://example.com/data");
   assert.equal(calls, 2, "refresh expired cache");
@@ -52,4 +62,6 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   Date.now = originalNow;
+  if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+  else delete globalThis.localStorage;
 }

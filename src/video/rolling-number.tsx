@@ -13,8 +13,8 @@ export function RollingNumber({
 }) {
   const id = useId();
   const length = Math.max(1, String(Math.floor(maximum)).length);
-  const digits = String(Math.floor(value)).padStart(length, " ");
-  const before = String(Math.floor(previous)).padStart(length, "0");
+  const digits = String(Math.floor(value));
+  const before = String(Math.floor(previous)).padStart(digits.length, "0");
   const cellWidth = 40;
   const commaWidth = 20;
   const contentWidth = length * cellWidth + Math.floor((length - 1) / 3) * commaWidth;
@@ -43,9 +43,8 @@ export function RollingNumber({
       >
         {Array.from(digits, (digit, index) => {
           const digitX = x;
-          const comma = index < length - 1 && (length - index - 1) % 3 === 0;
+          const comma = index < digits.length - 1 && (digits.length - index - 1) % 3 === 0;
           x += cellWidth + (comma ? commaWidth : 0);
-          if (digit === " ") return null;
           const from = Number(before[index]);
           const distance = (Number(digit) - from + 10) % 10;
           const position = from + distance * progress;

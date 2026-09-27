@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "NPM Video",
     description: "Show off your npm package downloads with a vibrant animated video.",
-    images: `/banner.png`,
+    images: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/banner.png`,
     type: "website",
     url: "/",
   },

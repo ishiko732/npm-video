@@ -1,4 +1,3 @@
-"use server";
 import type {Props} from "@/video/schema";
 
 import {cachedFetch as fetchWithCache} from "@/lib/cached-fetch";
@@ -22,7 +21,7 @@ type NpmRegistryResponse = {
   description?: string;
   author?: {name?: string};
   maintainers?: Array<{name?: string}>;
-  "dist-tags"?: Record<string, string>;
+  version?: string;
 };
 
 function getDateRange(timeRange: string): {
@@ -125,7 +124,9 @@ export async function getNpmDownloadsInfo(
   }
   const downloadsTotal = formattedHistory.reduce((total, point) => total + point.downloads, 0);
 
-  const registryResponse = await fetchWithCache(`https://registry.npmjs.org/${encodedPackage}`);
+  const registryResponse = await fetchWithCache(
+    `https://registry.npmjs.org/${encodedPackage}/latest`,
+  );
   if (!registryResponse.ok) {
     return {
       packageName,
@@ -145,7 +146,7 @@ export async function getNpmDownloadsInfo(
     displayName,
     description: await getPackageDescription(
       packageName,
-      registryJson["dist-tags"]?.latest,
+      registryJson.version,
       registryJson.description,
       fetchWithCache,
     ),

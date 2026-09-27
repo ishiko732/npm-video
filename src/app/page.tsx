@@ -1,54 +1,53 @@
-import {Suspense} from "react";
+"use client";
 
-import {getNpmDownloadsInfo} from "@/app/actions";
+import type {Props} from "@/video/schema";
+
+import {useSearchParams} from "next/navigation";
+import {Suspense, useEffect, useState} from "react";
+
 import {CompositionPlayer} from "@/app/composition-player";
 import {ErrorCard} from "@/app/error-card";
 import {PackageForm} from "@/app/package-form";
 import {ResultCard} from "@/app/result-card";
 import {LoadingSpinner} from "@/components/loading-spinner";
+import {getNpmDownloadsInfo} from "@/lib/npm-downloads";
 
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    package?: string;
-    timeRange?: string;
-    primaryColor?: string;
-    secondaryColor?: string;
-  }>;
-}) {
-  const params = await searchParams;
-  const packageName = params.package ?? "@heroui/react";
-  const timeRange = params.timeRange ?? "2-years";
-  const primaryColor = params.primaryColor ?? "#22c55e";
-  const secondaryColor = params.secondaryColor ?? "#10b981";
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <PackagePage />
+    </Suspense>
+  );
+}
+
+function PackagePage() {
+  const params = useSearchParams();
+  const packageName = params.get("package") ?? "@heroui/react";
+  const timeRange = params.get("timeRange") ?? "2-years";
+  const primaryColor = params.get("primaryColor") ?? "#22c55e";
+  const secondaryColor = params.get("secondaryColor") ?? "#10b981";
 
   return (
-    <div className="container mx-auto w-full max-w-2xl flex flex-col gap-8 h-full">
+    <div className="container mx-auto w-full max-w-2xl flex flex-col gap-8">
       <PackageForm
+        key={params.toString()}
         initialPackage={packageName}
         initialTimeRange={timeRange}
         initialPrimaryColor={primaryColor}
         initialSecondaryColor={secondaryColor}
       />
-      <div className="flex-1 min-h-0">
-        <Suspense
-          key={`${packageName}-${timeRange}-${primaryColor}-${secondaryColor}`}
-          fallback={<LoadingSpinner />}
-        >
-          <PackageResult
-            packageName={packageName}
-            timeRange={timeRange}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-          />
-        </Suspense>
-      </div>
+      <PackageResult
+        key={`${packageName}-${timeRange}`}
+        packageName={packageName}
+        timeRange={timeRange}
+        primaryColor={primaryColor}
+        secondaryColor={secondaryColor}
+      />
     </div>
   );
 }
 
-async function PackageResult({
+function PackageResult({
   packageName,
   timeRange,
   primaryColor,
@@ -59,31 +58,42 @@ async function PackageResult({
   primaryColor: string;
   secondaryColor: string;
 }) {
-  const inputProps = await getNpmDownloadsInfo(packageName, timeRange);
+  const [result, setResult] = useState<{data: Props | null; error?: string} | null>(null);
+  useEffect(() => {
+    let active = true;
+    getNpmDownloadsInfo(packageName, timeRange)
+      .then((data) => {
+        if (active) setResult({data});
+      })
+      .catch((error) => {
+        if (active)
+          setResult({
+            data: null,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Could not load npm downloads. Please try again.",
+          });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [packageName, timeRange]);
+  if (!result) return <LoadingSpinner />;
+  if (!result.data)
+    return result.error ? (
+      <p role="alert" className="text-sm text-danger">
+        {result.error}
+      </p>
+    ) : (
+      <ErrorCard packageName={packageName} />
+    );
+  const inputProps = {...result.data, primaryColor, secondaryColor};
 
   return (
-    <div className="h-full">
-      {inputProps === null ? (
-        <ErrorCard packageName={packageName} />
-      ) : (
-        <ResultCard
-          className="relative"
-          inputProps={{
-            ...inputProps,
-            primaryColor,
-            secondaryColor,
-          }}
-          primaryColor={primaryColor}
-        >
-          <CompositionPlayer
-            inputProps={{
-              ...inputProps,
-              primaryColor,
-              secondaryColor,
-            }}
-          />
-        </ResultCard>
-      )}
-    </div>
+    <ResultCard inputProps={inputProps} primaryColor={primaryColor}>
+      <CompositionPlayer inputProps={inputProps} />
+    </ResultCard>
   );
 }
