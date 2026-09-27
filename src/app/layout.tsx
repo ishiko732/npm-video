@@ -63,7 +63,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
 
               <div className="flex items-center gap-2">
                 <a
-                  href="https://github.com/heroui-inc/npm-video?ref=npmvideo.com"
+                  href="https://github.com/ishiko732/npm-video"
                   target="_blank"
                   rel="noreferrer noopener"
                   className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-lg hover:bg-default transition-colors"
