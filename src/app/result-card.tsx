@@ -40,6 +40,11 @@ export function ResultCard({
                 {new Intl.NumberFormat("en-US", {notation: "compact"}).format(m.value)}
               </dt>
               <dd className="text-sm text-muted">{formatDate(m.day)}</dd>
+              {inputProps?.milestoneStars?.[m.day] !== undefined && (
+                <dd className="text-sm mt-1">
+                  ★ {inputProps.milestoneStars[m.day].toLocaleString("en-US")}
+                </dd>
+              )}
             </div>
           ))}
         </dl>

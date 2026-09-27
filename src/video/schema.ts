@@ -15,6 +15,7 @@ export const schema = z.object({
       usedBy: z.number().int().nonnegative().optional(),
     })
     .optional(),
+  milestoneStars: z.record(z.string(), z.number().int().nonnegative()).optional(),
   downloadsTotal: z.number(),
   downloadsHistory: z.array(
     z.object({

@@ -2,6 +2,8 @@ import type {Props} from "@/video/schema";
 
 import {cachedFetch as fetchWithCache} from "@/lib/cached-fetch";
 import {getPackageMetadata} from "@/lib/npm-metadata";
+import {getMilestoneStars} from "@/lib/star-history";
+import {getGrowth} from "@/video/growth";
 
 // NPM Downloads functionality
 
@@ -117,10 +119,18 @@ export async function getNpmDownloadsInfo(
   }
   const downloadsTotal = formattedHistory.reduce((total, point) => total + point.downloads, 0);
 
+  const packageMetadata = await metadata;
+  const milestoneStars = await getMilestoneStars(
+    packageMetadata.repositoryStats,
+    getGrowth(formattedHistory).milestones.map((m) => m.day),
+    fetchWithCache,
+  );
+
   return {
     packageName,
     displayName: packageName,
-    ...(await metadata),
+    ...packageMetadata,
+    milestoneStars,
     downloadsTotal,
     downloadsHistory: formattedHistory,
     period: periodLabel,

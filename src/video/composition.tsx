@@ -22,6 +22,7 @@ export function NpmDownloadsComposition({
   description,
   publisher,
   repositoryStats,
+  milestoneStars,
   downloadsHistory,
   period,
   primaryColor = "#22c55e",
@@ -163,7 +164,8 @@ export function NpmDownloadsComposition({
                 const pointX = x(m.day);
                 const pointY = y(growth.points[m.index].downloads);
                 const labelX = pointX < 250 ? pointX + 14 : pointX - 14;
-                const labelY = pointY < 70 ? pointY + 28 : pointY - 30;
+                const stars = milestoneStars?.[m.day];
+                const labelY = pointY < 70 ? pointY + 28 : pointY - (stars === undefined ? 30 : 50);
 
                 return (
                   <g key={m.value} opacity={pointX <= revealX ? 1 : 0}>
@@ -184,6 +186,11 @@ export function NpmDownloadsComposition({
                       <tspan x={labelX} dy={22} fontSize={16}>
                         {formatDate(m.day)}
                       </tspan>
+                      {stars !== undefined && (
+                        <tspan x={labelX} dy={20} fontSize={16}>
+                          ★ {stars.toLocaleString("en-US")}
+                        </tspan>
+                      )}
                     </text>
                   </g>
                 );
