@@ -1,17 +1,10 @@
 "use server";
 import type {Props} from "@/video/schema";
 
+import {cachedFetch as fetchWithCache} from "@/lib/cached-fetch";
 import {getPackageDescription} from "@/lib/npm-description";
 
 // NPM Downloads functionality
-
-const fetchWithCache = (input: RequestInfo | URL, init?: RequestInit | undefined) =>
-  fetch(input, {
-    ...init,
-    next: {
-      revalidate: 5 * 60,
-    },
-  });
 
 type NpmDownloadsResponse =
   | {
@@ -107,17 +100,22 @@ export async function getNpmDownloadsInfo(
       end: new Date(Math.min(start + 364 * day, Date.parse(endDate))).toISOString().slice(0, 10),
     });
   }
-  const responses = await Promise.all(
-    ranges.map(async (range) => {
-      const response = await fetchWithCache(
-        `https://api.npmjs.org/downloads/range/${range.start}:${range.end}/${encodedPackage}`,
-      );
-      if (!response.ok) return null;
-      const data = (await response.json()) as NpmDownloadsResponse;
+  const responses: Array<Props["downloadsHistory"] | null> = [];
+  for (let i = 0; i < ranges.length; i += 2) {
+    responses.push(
+      ...(await Promise.all(
+        ranges.slice(i, i + 2).map(async (range) => {
+          const response = await fetchWithCache(
+            `https://api.npmjs.org/downloads/range/${range.start}:${range.end}/${encodedPackage}`,
+          );
+          if (!response.ok) return null;
+          const data = (await response.json()) as NpmDownloadsResponse;
 
-      return "downloads" in data ? data.downloads : null;
-    }),
-  );
+          return "downloads" in data ? data.downloads : null;
+        }),
+      )),
+    );
+  }
   if (responses.some((response) => response === null)) return null;
   // Keep daily samples so cumulative milestones retain their exact dates.
   let formattedHistory = responses.flatMap((response) => response ?? []);
