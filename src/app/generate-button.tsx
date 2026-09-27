@@ -23,22 +23,14 @@ export function GenerateButton({
   primaryColor?: string;
 }) {
   const [progress, setProgress] = useState<number | null>(null);
-  const [download, setDownload] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const controller = useRef<AbortController | null>(null);
 
   useEffect(() => () => controller.current?.abort(), []);
-  useEffect(
-    () => () => {
-      if (download) URL.revokeObjectURL(download);
-    },
-    [download],
-  );
   useEffect(() => {
     controller.current?.abort();
     controller.current = null;
     setProgress(null);
-    setDownload(null);
     setError(null);
   }, [inputProps]);
 
@@ -59,7 +51,6 @@ export function GenerateButton({
           controller.current = abort;
           setProgress(0);
           setError(null);
-          setDownload(null);
           try {
             const {canRenderMediaOnWeb, renderMediaOnWeb} = await import("@remotion/web-renderer");
             const props = schema.parse({...defaultProps, ...inputProps});
@@ -95,7 +86,17 @@ export function GenerateButton({
               },
             });
             const blob = await result.getBlob();
-            if (!abort.signal.aborted) setDownload(URL.createObjectURL(blob));
+            if (!abort.signal.aborted) {
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = url;
+              link.download = filename;
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+              // Keep the URL alive until the browser has started reading the file.
+              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+            }
           } catch (err) {
             if (!abort.signal.aborted)
               setError(
@@ -121,11 +122,6 @@ export function GenerateButton({
         <Button variant="outline" onPress={() => controller.current?.abort()}>
           Cancel export
         </Button>
-      )}
-      {download && (
-        <a className="text-center underline" href={download} download={filename}>
-          Download MP4
-        </a>
       )}
       {error && (
         <p role="alert" className="text-sm text-danger break-words">

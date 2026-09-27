@@ -37,7 +37,7 @@ pnpm install --frozen-lockfile --ignore-scripts
 pnpm dev
 ```
 
-No AWS or Redis credentials are needed. MP4 export runs in your browser and offers a download link when finished. It requires a browser with WebCodecs and H.264 encoding support; unsupported browsers display an error. Keep the page open during export, or use Cancel export to stop it.
+No AWS or Redis credentials are needed. MP4 export runs in your browser and automatically downloads the file when finished. It requires a browser with WebCodecs and H.264 encoding support; unsupported browsers display an error. Keep the page open during export, or use Cancel export to stop it.
 
 ## GitHub Pages
 

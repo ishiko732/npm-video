@@ -1,7 +1,7 @@
 import type {Props} from "@/video/schema";
 
 import {cachedFetch as fetchWithCache} from "@/lib/cached-fetch";
-import {getPackageDescription} from "@/lib/npm-description";
+import {getPackageMetadata} from "@/lib/npm-metadata";
 
 // NPM Downloads functionality
 
@@ -15,14 +15,6 @@ type NpmDownloadsResponse =
   | {
       error: string;
     };
-
-type NpmRegistryResponse = {
-  name?: string;
-  description?: string;
-  author?: {name?: string};
-  maintainers?: Array<{name?: string}>;
-  version?: string;
-};
 
 function getDateRange(timeRange: string): {
   startDate: string;
@@ -89,6 +81,7 @@ export async function getNpmDownloadsInfo(
 
   const {startDate, endDate, periodLabel} = getDateRange(timeRange);
   const encodedPackage = encodeURIComponent(packageName);
+  const metadata = getPackageMetadata(packageName, fetchWithCache);
 
   // npm caps each request at 18 months; yearly chunks preserve older history.
   const ranges: Array<{start: string; end: string}> = [];
@@ -124,33 +117,10 @@ export async function getNpmDownloadsInfo(
   }
   const downloadsTotal = formattedHistory.reduce((total, point) => total + point.downloads, 0);
 
-  const registryResponse = await fetchWithCache(
-    `https://registry.npmjs.org/${encodedPackage}/latest`,
-  );
-  if (!registryResponse.ok) {
-    return {
-      packageName,
-      displayName: packageName,
-      downloadsTotal,
-      downloadsHistory: formattedHistory,
-      period: periodLabel,
-    };
-  }
-
-  const registryJson = (await registryResponse.json()) as NpmRegistryResponse;
-  const displayName = registryJson.name ?? packageName;
-  const publisher = registryJson.author?.name ?? registryJson.maintainers?.[0]?.name;
-
   return {
     packageName,
-    displayName,
-    description: await getPackageDescription(
-      packageName,
-      registryJson.version,
-      registryJson.description,
-      fetchWithCache,
-    ),
-    publisher,
+    displayName: packageName,
+    ...(await metadata),
     downloadsTotal,
     downloadsHistory: formattedHistory,
     period: periodLabel,
