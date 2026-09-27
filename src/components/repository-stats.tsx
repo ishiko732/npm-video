@@ -12,7 +12,6 @@ export function RepositoryStats({stats}: {stats: Props["repositoryStats"]}) {
       className="flex flex-wrap items-center gap-3 text-sm"
       aria-label="Current repository statistics"
     >
-      <span className="text-xs opacity-60">Current</span>
       <span
         className="inline-flex items-center gap-1"
         title={`Current stars: ${stats.stars.toLocaleString("en-US")}`}
