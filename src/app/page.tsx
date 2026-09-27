@@ -59,6 +59,7 @@ function PackageResult({
   secondaryColor: string;
 }) {
   const [result, setResult] = useState<{data: Props | null; error?: string} | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
     getNpmDownloadsInfo(packageName, timeRange)
@@ -79,15 +80,18 @@ function PackageResult({
     return () => {
       active = false;
     };
-  }, [packageName, timeRange]);
+  }, [packageName, timeRange, attempt]);
   if (!result) return <LoadingSpinner />;
   if (!result.data)
-    return result.error ? (
-      <p role="alert" className="text-sm text-danger">
-        {result.error}
-      </p>
-    ) : (
-      <ErrorCard packageName={packageName} />
+    return (
+      <ErrorCard
+        packageName={packageName}
+        message={result.error}
+        onRetry={() => {
+          setResult(null);
+          setAttempt((value) => value + 1);
+        }}
+      />
     );
   const inputProps = {...result.data, primaryColor, secondaryColor};
 

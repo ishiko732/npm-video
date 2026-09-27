@@ -101,8 +101,13 @@ export async function getNpmDownloadsInfo(
         ranges.slice(i, i + 2).map(async (range) => {
           const response = await fetchWithCache(
             `https://api.npmjs.org/downloads/range/${range.start}:${range.end}/${encodedPackage}`,
+            {signal: AbortSignal.timeout(15_000)},
           );
-          if (!response.ok) return null;
+          if (response.status === 404) return null;
+          if (!response.ok)
+            throw new Error(
+              `Could not load npm downloads (HTTP ${response.status}). Please retry.`,
+            );
           const data = (await response.json()) as NpmDownloadsResponse;
 
           return "downloads" in data ? data.downloads : null;
