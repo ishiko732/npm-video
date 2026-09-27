@@ -2,7 +2,17 @@
 
 import type {Key} from "react-aria-components";
 
-import {Button, cn, FieldError, Input, Label, ListBox, Popover, Select, TextField} from "@heroui/react";
+import {
+  Button,
+  FieldError,
+  Input,
+  Label,
+  ListBox,
+  Popover,
+  Select,
+  TextField,
+  cn,
+} from "@heroui/react";
 import NextLink from "next/link";
 import {useRouter} from "next/navigation";
 import posthog from "posthog-js";
@@ -217,9 +227,9 @@ export function PackageForm({
         router.push(`/?${params.toString()}`);
       }}
     >
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-3">
         <TextField
-          className="flex-1 flex flex-col gap-1"
+          className="min-w-0 flex-1 flex flex-col gap-1"
           isInvalid={isPackageInvalid}
           isRequired
           name="package"
@@ -243,7 +253,7 @@ export function PackageForm({
           {isPackageInvalid && <FieldError>Please enter a valid npm package name</FieldError>}
         </TextField>
         <Select
-          className="w-[150px] flex flex-col gap-1"
+          className="w-full sm:w-[150px] flex flex-col gap-1"
           placeholder="Select"
           value={timeRange}
           onChange={(value) => setTimeRange(value)}

@@ -1,368 +1,205 @@
 import type {Props} from "./schema";
 
 import NumberFlow, {continuous} from "@number-flow/react";
-import {darken, getLuminance, lighten, transparentize} from "color2k";
-import {useMemo} from "react";
-import {AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig} from "remotion";
+import {darken} from "color2k";
+import {useId, useMemo} from "react";
+import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from "remotion";
 
-export const animationDurationInSeconds = 3;
+import {formatDate, getGrowth} from "./growth";
+
+export const animationDurationInSeconds = 6;
 export const width = 1280;
 export const height = 720;
 export const fps = 60;
 
-const chartWidth = 1260;
-const chartHeight = 330;
-const chartPadding = 58;
+const compact = (value: number) =>
+  new Intl.NumberFormat("en-US", {notation: "compact"}).format(value);
 
 export function NpmDownloadsComposition({
   displayName,
   description,
   publisher,
-  downloadsTotal,
   downloadsHistory,
   period,
   primaryColor = "#22c55e",
   secondaryColor = "#10b981",
 }: Props) {
-  const luminance = getLuminance(primaryColor);
-
-  const complementaryPrimaryColor = transparentize(primaryColor, luminance >= 0.7 ? 0.8 : 0.5);
-  const backgroundColor = darken(primaryColor, 0.9);
-
-  // Calculate appropriate font size based on package name length
-  const titleFontSize = useMemo(() => {
-    const length = displayName.length;
-    if (length <= 15) return 64;
-    if (length <= 20) return 56;
-    if (length <= 25) return 48;
-    if (length <= 30) return 42;
-    if (length <= 35) return 38;
-
-    return 34;
-  }, [displayName]);
-
-  return (
-    <AbsoluteFill style={{backgroundColor}}>
-      <AbsoluteFill
-        style={{
-          background: `linear-gradient(165deg,
-        ${darken(complementaryPrimaryColor, 0.28)} 0%,
-        ${darken(complementaryPrimaryColor, 0.6)} 35%,
-        ${darken(complementaryPrimaryColor, 0.9)} 70%,
-          rgba(0, 0, 0, 1) 100%)`,
-          // @ts-expect-error it's ok
-          "--primary-color": primaryColor,
-          "--secondary-color": secondaryColor,
-        }}
-      >
-        <div className="flex flex-col h-full gap-10 p-16">
-          <div className="flex justify-between px-2">
-            <header className="flex flex-col gap-4">
-              <span className="uppercase tracking-[0.4em] text-xs text-white/60">
-                npm downloads
-              </span>
-              <h1
-                className="leading-none font-bold tracking-tight text-white"
-                style={{
-                  fontSize: `${titleFontSize}px`,
-                }}
-              >
-                {displayName}
-              </h1>
-              <div className="flex flex-wrap items-center gap-2 text-lg text-white/80 max-w-[480px]">
-                {description && (
-                  <p className="max-w-3xl text-white/70 text-xl truncate">{description}</p>
-                )}
-                {publisher && (
-                  <span
-                    className="px-3 py-1 rounded-full border"
-                    style={{
-                      color: lighten(primaryColor, 0.2),
-                      backgroundColor: transparentize(primaryColor, 0.9),
-                      borderColor: darken(primaryColor, 0.38),
-                    }}
-                  >
-                    {publisher}
-                  </span>
-                )}
-              </div>
-            </header>
-            <aside className="w-[full flex flex-col justify-between">
-              <DownloadsCounter downloads={downloadsTotal} />
-            </aside>
-          </div>
-          <div className="flex flex-1 gap-12">
-            <div className="flex-1 relative">
-              <DownloadsChart
-                history={downloadsHistory}
-                period={period}
-                primaryColor={primaryColor}
-                secondaryColor={secondaryColor}
-              />
-            </div>
-          </div>
-        </div>
-        {/* Bottom left watermark */}
-        <div className="absolute bottom-[22px] left-[74px] text-white/30 text-md font-medium">
-          npmvideo.com
-        </div>
-      </AbsoluteFill>
-    </AbsoluteFill>
-  );
-}
-
-function DownloadsCounter({downloads}: {downloads: number}) {
+  const chartId = useId();
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
-
-  const animatedValue = Math.round(
-    interpolate(frame, [0, animationDurationInSeconds * fps], [0, downloads], {
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.2, 0.9, 0.2, 1),
-    }),
-  );
-
-  return (
-    <NumberFlow
-      value={animatedValue}
-      plugins={[continuous]}
-      format={{
-        notation: "standard",
-        maximumFractionDigits: 1,
-      }}
-      className="text-[84px] leading-none font-bold text-white text-right slashed-zero tabular-nums"
-      animated={true}
-      trend={animatedValue > 0 ? 1 : 0}
-    />
-  );
-}
-
-function DownloadsChart({
-  history,
-  period,
-  primaryColor,
-  secondaryColor,
-}: {
-  history: Props["downloadsHistory"];
-  period?: string;
-  primaryColor: string;
-  secondaryColor: string;
-}) {
-  const frame = useCurrentFrame();
-  const {fps} = useVideoConfig();
-
-  if (history.length === 0) {
-    return (
-      <div className="h-full w-full rounded-3xl border border-white/10 bg-white/5 flex items-center justify-center text-white/70 text-xl">
-        No download data available
-      </div>
-    );
-  }
-
-  const progress = interpolate(frame, [fps * 0.5, animationDurationInSeconds * fps], [0, 1], {
+  const growth = useMemo(() => getGrowth(downloadsHistory), [downloadsHistory]);
+  const progress = interpolate(frame, [fps * 0.5, fps * animationDurationInSeconds], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
-    easing: Easing.bezier(0.3, 1, 0.3, 1),
   });
-
-  const chart = useMemo(() => prepareChart(history), [history]);
-
-  const visibleLength = chart.pathLength * Math.max(progress, 0.0001);
-  const dashOffset = chart.pathLength - visibleLength;
+  const total = growth.points.at(-1)?.downloads ?? 0;
+  const max = total || 1;
+  const firstDay = Date.parse(growth.points[0]?.day ?? "1970-01-01");
+  const lastDay = Date.parse(growth.points.at(-1)?.day ?? "1970-01-01");
+  const x = (day: string) =>
+    80 + (lastDay === firstDay ? 0.5 : (Date.parse(day) - firstDay) / (lastDay - firstDay)) * 1020;
+  const y = (value: number) => 230 - (value / max) * 200;
+  const revealX = 80 + 1020 * progress;
+  const visiblePoints = growth.points.filter((point) => x(point.day) <= revealX);
+  const current = visiblePoints.at(-1);
+  const path = growth.points
+    .map((point, i) => `${i ? "L" : "M"}${x(point.day)} ${y(point.downloads)}`)
+    .join(" ");
 
   return (
-    <div className="h-full w-full rounded-3xl border border-white/10 bg-white/5 px-12 pt-6 pb-12 flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <span className="uppercase text-xs tracking-[0.25em] text-white/60">Download trend</span>
-        {period && <span className="text-white/60 text-sm tracking-wide">{period}</span>}
-      </div>
-      <div className="relative flex-1">
-        <svg
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full"
-        >
-          <defs>
-            <linearGradient
-              id="line"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="0%"
-              gradientUnits="userSpaceOnUse"
-            >
-              <stop offset="0%" stopColor={primaryColor} />
-              <stop offset="100%" stopColor={secondaryColor} />
-            </linearGradient>
-            <linearGradient id="area" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
-              <stop offset="0%" stopColor={primaryColor} stopOpacity="0.45" />
-              <stop offset="100%" stopColor={secondaryColor} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {chart.gridLines.map((line) => (
-            <g key={line.value}>
-              <line
-                x1={chartPadding}
-                x2={chartWidth - chartPadding}
-                y1={line.y}
-                y2={line.y}
-                stroke="rgba(255,255,255,0.06)"
-                strokeWidth={1}
-              />
-              <text
-                x={chartPadding - 12}
-                y={line.y}
-                textAnchor="end"
-                dominantBaseline="middle"
-                fill="rgba(226,232,240,0.4)"
-                fontSize={18}
-                fontFamily="Inter, sans-serif"
-              >
-                {formatDownloads(line.value)}
-              </text>
-            </g>
-          ))}
-          <path d={chart.areaPath} fill="url(#area)" opacity={Math.min(progress + 0.1, 1)} />
-          <path
-            d={chart.path}
-            fill="none"
-            stroke="url(#line)"
-            strokeWidth={5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              strokeDasharray: chart.pathLength,
-              strokeDashoffset: dashOffset,
-            }}
-          />
-        </svg>
-        <div className="absolute inset-x-0 bottom-0 translate-y-full mt-6 flex justify-between text-sm text-white/60 uppercase tracking-[0.2em]">
-          {chart.labels.map((label) => (
-            <span key={label.day}>{label.text}</span>
-          ))}
+    <AbsoluteFill
+      style={{
+        background: `linear-gradient(150deg, ${darken(primaryColor, 0.7)}, #07110e 75%)`,
+        color: "white",
+        padding: "40px 48px 64px",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <header className="flex gap-8 justify-between" style={{height: 220, flexShrink: 0}}>
+        <div className="min-w-0 flex-1">
+          <div className="text-sm uppercase tracking-[0.3em] text-white/60 mb-3">npm downloads</div>
+          <h1
+            className="font-bold leading-none mb-3 break-words"
+            style={{fontSize: displayName.length > 30 ? 32 : 56}}
+          >
+            {displayName}
+          </h1>
+          <p
+            className="text-white/75 leading-snug break-words"
+            style={{fontSize: (description?.length ?? 0) > 260 ? 16 : 20}}
+          >
+            {description}
+          </p>
+          {publisher && (
+            <div className="text-base text-white/60 mt-2 break-words">by {publisher}</div>
+          )}
         </div>
+        <div className="shrink-0 text-left" style={{width: 400}}>
+          <div className="text-base text-white/60 mb-3">Downloads in selected period</div>
+          <div
+            className="font-bold tabular-nums leading-none"
+            style={{
+              fontSize: Math.min(
+                64,
+                Math.floor(400 / (total.toLocaleString("en-US").length * 0.62)),
+              ),
+            }}
+          >
+            <NumberFlow
+              value={current?.downloads ?? 0}
+              locales="en-US"
+              format={{notation: "standard", maximumFractionDigits: 0}}
+              plugins={[continuous]}
+              animated
+              trend={1}
+              style={{fontSize: "inherit", fontWeight: "inherit"}}
+            />
+          </div>
+          <div className="text-base text-white/60 mt-3">
+            {current ? formatDate(current.day) : period}
+          </div>
+        </div>
+      </header>
+      <div className="rounded-3xl border border-white/15 bg-white/5 px-6 py-5 flex-1 min-h-0">
+        <div className="flex justify-between text-base text-white/70">
+          <span>Cumulative downloads</span>
+          <span>{period} · starts at 0</span>
+        </div>
+        {growth.points.length ? (
+          <>
+            <svg
+              viewBox="0 0 1140 275"
+              className="w-full"
+              style={{height: 285}}
+              role="img"
+              aria-label="Cumulative download growth"
+            >
+              <defs>
+                <linearGradient id={`${chartId}-area`} x1="0" x2="0" y1="0" y2="1">
+                  <stop stopColor={primaryColor} stopOpacity="0.3" />
+                  <stop offset="1" stopColor={primaryColor} stopOpacity="0" />
+                </linearGradient>
+                <clipPath id={`${chartId}-reveal`}>
+                  <rect width={revealX} height={275} />
+                </clipPath>
+              </defs>
+              {[0, max / 2, max].map((value) => (
+                <g key={value}>
+                  <line
+                    x1={80}
+                    x2={1100}
+                    y1={y(value)}
+                    y2={y(value)}
+                    stroke="white"
+                    strokeOpacity="0.12"
+                  />
+                  <text
+                    x={68}
+                    y={y(value)}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                    fill="#b1c3ba"
+                    fontSize={18}
+                  >
+                    {compact(value)}
+                  </text>
+                </g>
+              ))}
+              <g clipPath={`url(#${chartId}-reveal)`}>
+                <path
+                  d={`${path} L${x(growth.points.at(-1)!.day)} 230 L${x(growth.points[0].day)} 230 Z`}
+                  fill={`url(#${chartId}-area)`}
+                />
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={secondaryColor}
+                  strokeWidth={4}
+                  strokeLinejoin="round"
+                />
+              </g>
+              {growth.milestones.map((m) => {
+                const pointX = x(m.day);
+                const pointY = y(growth.points[m.index].downloads);
+                const labelX = pointX < 250 ? pointX + 14 : pointX - 14;
+                const labelY = pointY < 70 ? pointY + 28 : pointY - 30;
+
+                return (
+                  <g key={m.value} opacity={pointX <= revealX ? 1 : 0}>
+                    <circle cx={pointX} cy={pointY} r={5} fill="white" />
+                    <text
+                      x={labelX}
+                      y={labelY}
+                      textAnchor={pointX < 250 ? "start" : "end"}
+                      fill="white"
+                      stroke="#102019"
+                      strokeWidth={4}
+                      paintOrder="stroke"
+                      strokeLinejoin="round"
+                    >
+                      <tspan x={labelX} fontSize={24} fontWeight={700}>
+                        {compact(m.value)}
+                      </tspan>
+                      <tspan x={labelX} dy={22} fontSize={16}>
+                        {formatDate(m.day)}
+                      </tspan>
+                    </text>
+                  </g>
+                );
+              })}
+              <text x={80} y={265} fill="#b1c3ba" fontSize={18}>
+                {formatDate(growth.points[0].day)}
+              </text>
+              <text x={1100} y={265} textAnchor="end" fill="#b1c3ba" fontSize={18}>
+                {formatDate(growth.points.at(-1)!.day)}
+              </text>
+            </svg>
+          </>
+        ) : (
+          <div className="py-20 text-center text-white/70">No download data available</div>
+        )}
       </div>
-    </div>
+      <div className="text-sm text-white/40 mt-4">npmvideo.com</div>
+    </AbsoluteFill>
   );
-}
-
-type ChartPoint = {
-  day: string;
-  downloads: number;
-  x: number;
-  y: number;
-};
-
-type ChartData = {
-  points: ChartPoint[];
-  path: string;
-  areaPath: string;
-  pathLength: number;
-  gridLines: Array<{value: number; y: number}>;
-  labels: Array<{day: string; text: string}>;
-  maxDownloads: number;
-};
-
-function prepareChart(history: Props["downloadsHistory"]): ChartData {
-  const maxDownloads = history.reduce((max, point) => Math.max(max, point.downloads), 0) || 1;
-
-  const usableWidth = chartWidth - chartPadding * 2;
-  const usableHeight = chartHeight - chartPadding * 2;
-
-  const points = history.map((point, index) => {
-    const progress = history.length > 1 ? index / (history.length - 1) : 0.5;
-    const x = chartPadding + usableWidth * progress;
-    const scaledDownloads = point.downloads / maxDownloads;
-    const y = chartHeight - chartPadding - usableHeight * (scaledDownloads || 0);
-
-    return {
-      day: point.day,
-      downloads: point.downloads,
-      x,
-      y,
-    };
-  });
-
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-    .join(" ");
-
-  const areaPath = [
-    path,
-    points.length
-      ? `L ${points[points.length - 1].x.toFixed(2)} ${(chartHeight - chartPadding).toFixed(2)}`
-      : "",
-    points.length ? `L ${points[0].x.toFixed(2)} ${(chartHeight - chartPadding).toFixed(2)}` : "",
-    "Z",
-  ]
-    .filter(Boolean)
-    .join(" ");
-
-  const pathLength = points.reduce((length, point, index) => {
-    if (index === 0) return 0;
-    const prev = points[index - 1];
-
-    return length + Math.hypot(point.x - prev.x, point.y - prev.y);
-  }, 0);
-
-  // Show only 3 grid lines: bottom (0), middle, and top (max)
-  const gridLines = [
-    {value: 0, y: chartHeight - chartPadding},
-    {value: maxDownloads / 2, y: chartHeight - chartPadding - usableHeight * 0.5},
-    {value: maxDownloads, y: chartPadding},
-  ];
-
-  const labelIndexes =
-    history.length <= 3
-      ? history.map((_, index) => index)
-      : [0, Math.floor(history.length / 2), history.length - 1];
-
-  const labels = labelIndexes.map((index) => {
-    const point = history[index];
-
-    return {
-      day: point.day,
-      text: formatDate(point.day),
-    };
-  });
-
-  return {
-    points,
-    path: path || "",
-    areaPath: areaPath || "",
-    pathLength: pathLength || 1,
-    gridLines,
-    labels,
-    maxDownloads,
-  };
-}
-
-function formatDownloads(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    notation: "compact",
-  }).format(value);
-}
-
-function formatDate(day: string) {
-  const date = new Date(`${day}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) return day;
-
-  // For monthly data, show month and year
-  const month = date.toLocaleDateString("en-US", {month: "short"});
-  const year = date.getFullYear();
-  const dayNum = date.getDate();
-
-  // If it's not the first day of month (partial month data), show the day too
-  if (dayNum !== 1) {
-    return `${month} ${dayNum}`;
-  }
-
-  // For regular monthly data, just show month abbreviation
-  // Only show year for January or if space allows
-  const currentYear = new Date().getFullYear();
-  if (date.getMonth() === 0 || year !== currentYear) {
-    return `${month} '${String(year).slice(-2)}`;
-  }
-
-  return month;
 }

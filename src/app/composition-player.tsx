@@ -70,10 +70,7 @@ export function CompositionPlayer({inputProps}: {inputProps: Partial<Props>}) {
   }, [isVisible]);
 
   return (
-    <div
-      className="w-full h-full max-h-[380px] overflow-hidden aspect-video object-fit rounded-xl shadow-xl"
-      ref={divRef}
-    >
+    <div className="w-full overflow-hidden aspect-video rounded-xl shadow-xl" ref={divRef}>
       {divWidth !== 0 && divHeight !== 0 && (
         <Player
           ref={playerRef}
