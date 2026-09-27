@@ -54,3 +54,5 @@ Serve `out/` with a static HTTP server mounted at `/npm-video/` to test the same
 Requests are cached for five minutes (including across reloads when browser storage is available), concurrent identical requests share one fetch, and long date ranges use at most two simultaneous requests. HTTP 429 responses respect `Retry-After`; errors are shown rather than retried continuously.
 
 Run `pnpm typecheck` for TypeScript validation.
+
+Public GitHub repositories show current stars and forks beside the package name. Used by counts come from dependents.info for the repository's default package and may be cached there for up to seven days. The icons include accessible labels and source information in their tooltips. Private, inaccessible, or unverified repositories are omitted; unavailable counts are not shown as zero. These current statistics are not presented as historical milestone statistics.

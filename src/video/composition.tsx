@@ -4,6 +4,8 @@ import {darken} from "color2k";
 import {useId, useMemo} from "react";
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from "remotion";
 
+import {RepositoryStats} from "@/components/repository-stats";
+
 import {formatDate, getGrowth} from "./growth";
 import {RollingNumber} from "./rolling-number";
 
@@ -19,6 +21,7 @@ export function NpmDownloadsComposition({
   displayName,
   description,
   publisher,
+  repositoryStats,
   downloadsHistory,
   period,
   primaryColor = "#22c55e",
@@ -66,12 +69,15 @@ export function NpmDownloadsComposition({
       <header className="flex gap-8 justify-between" style={{height: 220, flexShrink: 0}}>
         <div className="min-w-0 flex-1">
           <div className="text-sm uppercase tracking-[0.3em] text-white/60 mb-3">npm downloads</div>
-          <h1
-            className="font-bold leading-none mb-3 break-words"
-            style={{fontSize: displayName.length > 30 ? 32 : 56}}
-          >
-            {displayName}
-          </h1>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-3">
+            <h1
+              className="font-bold leading-none break-words"
+              style={{fontSize: displayName.length > 30 ? 32 : 56}}
+            >
+              {displayName}
+            </h1>
+            <RepositoryStats stats={repositoryStats} />
+          </div>
           <p
             className="text-white/75 leading-snug break-words"
             style={{fontSize: (description?.length ?? 0) > 260 ? 16 : 20}}

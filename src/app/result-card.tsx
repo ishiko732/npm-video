@@ -2,6 +2,7 @@ import type {Props} from "@/video/schema";
 import type {ReactNode} from "react";
 
 import {GenerateButton} from "@/app/generate-button";
+import {RepositoryStats} from "@/components/repository-stats";
 import {formatDate, getGrowth} from "@/video/growth";
 
 export function ResultCard({
@@ -20,7 +21,10 @@ export function ResultCard({
     <div className="h-full flex flex-col gap-4">
       <div className="flex-1 w-full border border-white/10 rounded-xl mb-2">{children}</div>
       <section className="min-w-0" aria-label="Package download summary">
-        <h2 className="text-xl font-semibold break-words">{inputProps?.displayName}</h2>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h2 className="text-xl font-semibold break-words">{inputProps?.displayName}</h2>
+          <RepositoryStats stats={inputProps?.repositoryStats} />
+        </div>
         <p className="text-sm text-muted break-words mt-2">{inputProps?.description}</p>
         <p className="text-sm mt-3">
           {inputProps?.downloadsTotal?.toLocaleString("en-US")} downloads · {inputProps?.period}

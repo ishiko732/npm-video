@@ -8,7 +8,11 @@ const result = await getPackageMetadata(name, async (url, init) => {
   assert.ok(init.signal instanceof AbortSignal);
   return Response.json({name, description: "full description", author: {name: "HeroUI"}});
 });
-assert.deepEqual(result, {description: "full description", publisher: "HeroUI"});
+assert.deepEqual(result, {
+  description: "full description",
+  publisher: "HeroUI",
+  repositoryStats: undefined,
+});
 assert.equal(calls.length, 1, "a working CDN must avoid the registry entirely");
 assert.match(calls[0], /cdn\.jsdelivr\.net/);
 let fallbackCalls = 0;
@@ -17,7 +21,7 @@ assert.deepEqual(
     if (++fallbackCalls === 1) throw new DOMException("timeout", "TimeoutError");
     return Response.json({name, description: "fallback"});
   }),
-  {description: "fallback", publisher: undefined},
+  {description: "fallback", publisher: undefined, repositoryStats: undefined},
 );
 assert.equal(fallbackCalls, 2);
 assert.deepEqual(

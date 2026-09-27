@@ -7,6 +7,14 @@ export const schema = z.object({
   displayName: z.string(),
   description: z.string().optional(),
   publisher: z.string().optional(),
+  repositoryStats: z
+    .object({
+      url: z.string().url(),
+      stars: z.number().int().nonnegative(),
+      forks: z.number().int().nonnegative(),
+      usedBy: z.number().int().nonnegative().optional(),
+    })
+    .optional(),
   downloadsTotal: z.number(),
   downloadsHistory: z.array(
     z.object({
