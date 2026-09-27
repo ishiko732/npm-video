@@ -10,7 +10,7 @@ Generate beautiful animated videos that highlight your npm package download tren
 
 ## Stack
 
-- [Remotion](https://www.remotion.dev/) to create the video (and [Remotion Lambda](https://www.remotion.dev/docs/lambda/api) to generate it in AWS)
+- [Remotion](https://www.remotion.dev/) for previews and browser-side MP4 export; no AWS account or keys required
 - [Next.js](https://nextjs.org/) for the web application
 - [TailwindCSS](https://tailwindcss.com/) for the styling
 - [HeroUI](https://heroui.com/) for the UI components

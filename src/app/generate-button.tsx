@@ -4,19 +4,16 @@ import type {Props} from "@/video/schema";
 
 import {Button, Spinner} from "@heroui/react";
 import {readableColor} from "color2k";
-import {useRouter} from "next/navigation";
-import posthog from "posthog-js";
 import {useEffect, useRef, useState} from "react";
 
-import {generateVideo, getVideoGenerationProgress} from "@/app/actions";
-import {delay} from "@/lib/utils";
-
-type State =
-  | {type: "initial"}
-  | {type: "pending"}
-  | {type: "started"; renderId: string; bucketName: string}
-  | {type: "done"; renderId: string; bucketName: string}
-  | {type: "error"};
+import {
+  NpmDownloadsComposition,
+  animationDurationInSeconds,
+  fps,
+  height,
+  width,
+} from "@/video/composition";
+import {defaultProps, schema} from "@/video/schema";
 
 export function GenerateButton({
   inputProps,
@@ -25,138 +22,116 @@ export function GenerateButton({
   inputProps?: Partial<Props>;
   primaryColor?: string;
 }) {
-  const [state, setState] = useState<State>({type: "initial"});
-  const router = useRouter();
-  const isCancelledRef = useRef(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [download, setDownload] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const controller = useRef<AbortController | null>(null);
 
-  // Cleanup on unmount
+  useEffect(() => () => controller.current?.abort(), []);
+  useEffect(
+    () => () => {
+      if (download) URL.revokeObjectURL(download);
+    },
+    [download],
+  );
   useEffect(() => {
-    return () => {
-      isCancelledRef.current = true;
-    };
-  }, []);
+    controller.current?.abort();
+    controller.current = null;
+    setProgress(null);
+    setDownload(null);
+    setError(null);
+  }, [inputProps]);
 
-  const isPending = state.type === "pending" || state.type === "started";
-
-  if (inputProps && state.type === "done") {
-    const packageName = inputProps.packageName ?? inputProps.displayName ?? "package";
-
-    return (
-      <form
-        action="/download"
-        method="GET"
-        className="w-full"
-        onSubmit={() => {
-          posthog.capture("video_downloaded", {
-            package: packageName,
-            renderId: state.renderId,
-          });
-        }}
-      >
-        <input type="hidden" name="renderId" value={state.renderId} />
-        <input type="hidden" name="bucketName" value={state.bucketName} />
-        <input type="hidden" name="packageName" value={packageName} />
-        <Button
-          type="submit"
-          className="font-medium w-full"
-          style={
-            primaryColor
-              ? {
-                  backgroundColor: primaryColor,
-                  color: readableColor(primaryColor),
-                }
-              : undefined
-          }
-        >
-          Download video
-        </Button>
-      </form>
-    );
-  }
+  const filename = `${(inputProps?.packageName ?? "npm-package").replace(/[^a-zA-Z0-9._-]/g, "-")}.mp4`;
 
   return (
-    <Button
-      className="font-medium"
-      style={
-        primaryColor
-          ? {
-              backgroundColor: primaryColor,
-              color: readableColor(primaryColor),
-            }
-          : undefined
-      }
-      onPress={async () => {
-        try {
-          if (!inputProps) return;
-
-          const packageName = inputProps.packageName ?? inputProps.displayName ?? "npm-package";
-
-          posthog.capture("video_generation_started", {
-            package: packageName,
-          });
-
-          setState({type: "pending"});
-          const {renderId, bucketName} = await generateVideo(inputProps);
-
-          // Check if component was unmounted during the async operation
-          if (isCancelledRef.current) return;
-
-          setState({type: "started", renderId, bucketName});
-
-          // Poll for completion with cancellation support
-          while (!isCancelledRef.current) {
-            await delay(5000);
-
-            // Check again after delay
-            if (isCancelledRef.current) return;
-
-            const result = await getVideoGenerationProgress(renderId, bucketName);
-
-            // Check again after async operation
-            if (isCancelledRef.current) return;
-
-            if (result.done) {
-              posthog.capture("video_generation_completed", {
-                package: packageName,
-                renderId,
-              });
-              setState({type: "done", renderId, bucketName});
-              posthog.capture("video_downloaded", {
-                package: packageName,
-                renderId,
-              });
-              router.push(
-                `/download?renderId=${renderId}&bucketName=${bucketName}&packageName=${encodeURIComponent(
-                  packageName,
-                )}`,
-              );
-              break;
-            }
-            if (result.error) {
-              posthog.capture("video_generation_failed", {
-                package: packageName,
-                renderId,
-              });
-              setState({type: "error"});
-              break;
-            }
-          }
-        } catch (err) {
-          console.error(err);
-          if (!isCancelledRef.current) {
-            setState({type: "error"});
-          }
+    <div className="flex flex-col gap-3">
+      <Button
+        isDisabled={!inputProps || progress !== null}
+        style={
+          primaryColor
+            ? {backgroundColor: primaryColor, color: readableColor(primaryColor)}
+            : undefined
         }
-      }}
-      isPending={isPending}
-      isDisabled={!inputProps || isPending}
-    >
-      {({isPending: buttonPending}) => (
-        <>
-          {buttonPending ? <Spinner color="current" size="sm" /> : null}
-          {isPending ? "Generating video…" : "Export MP4 video"}
-        </>
+        onPress={async () => {
+          if (controller.current) return;
+          const abort = new AbortController();
+          controller.current = abort;
+          setProgress(0);
+          setError(null);
+          setDownload(null);
+          try {
+            const {canRenderMediaOnWeb, renderMediaOnWeb} = await import("@remotion/web-renderer");
+            const props = schema.parse({...defaultProps, ...inputProps});
+            const composition = {
+              id: "NpmDownloads",
+              defaultProps: props,
+              component: NpmDownloadsComposition,
+              durationInFrames: (animationDurationInSeconds + 1) * fps,
+              fps,
+              width,
+              height,
+            };
+            const support = await canRenderMediaOnWeb({
+              width,
+              height,
+              container: "mp4",
+              videoCodec: "h264",
+              muted: true,
+            });
+            if (!support.canRender)
+              throw new Error(
+                "This browser cannot export MP4. Try an updated Chrome, Edge or Safari.",
+              );
+            const result = await renderMediaOnWeb({
+              composition,
+              inputProps: props,
+              container: "mp4",
+              videoCodec: "h264",
+              muted: true,
+              signal: abort.signal,
+              onProgress: ({progress: value}) => {
+                if (!abort.signal.aborted) setProgress(Math.round(value * 100));
+              },
+            });
+            const blob = await result.getBlob();
+            if (!abort.signal.aborted) setDownload(URL.createObjectURL(blob));
+          } catch (err) {
+            if (!abort.signal.aborted)
+              setError(
+                err instanceof Error ? err.message : "Video export failed. Please try again.",
+              );
+          } finally {
+            if (controller.current === abort) {
+              controller.current = null;
+              setProgress(null);
+            }
+          }
+        }}
+      >
+        {progress !== null ? (
+          <>
+            <Spinner color="current" size="sm" /> Rendering {progress}%
+          </>
+        ) : (
+          "Export MP4 video"
+        )}
+      </Button>
+      {progress !== null && (
+        <Button variant="outline" onPress={() => controller.current?.abort()}>
+          Cancel export
+        </Button>
       )}
-    </Button>
+      {download && (
+        <a className="text-center underline" href={download} download={filename}>
+          Download MP4
+        </a>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger break-words">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

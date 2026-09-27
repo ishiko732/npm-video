@@ -1,7 +1,1 @@
 @import "tailwindcss";
-
-number-flow-react {
-  --number-flow-char-height: 0.85em;
-  font-size: 2rem;
-  font-weight: 500;
-}

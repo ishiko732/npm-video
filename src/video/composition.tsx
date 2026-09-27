@@ -1,11 +1,11 @@
 import type {Props} from "./schema";
 
-import NumberFlow, {continuous} from "@number-flow/react";
 import {darken} from "color2k";
 import {useId, useMemo} from "react";
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from "remotion";
 
 import {formatDate, getGrowth} from "./growth";
+import {RollingNumber} from "./rolling-number";
 
 export const animationDurationInSeconds = 6;
 export const width = 1280;
@@ -42,6 +42,14 @@ export function NpmDownloadsComposition({
   const revealX = 80 + 1020 * progress;
   const visiblePoints = growth.points.filter((point) => x(point.day) <= revealX);
   const current = visiblePoints.at(-1);
+  const counterValue = (at: number) => {
+    const edge =
+      80 +
+      1020 *
+        Math.max(0, Math.min(1, (at - fps * 0.5) / (fps * (animationDurationInSeconds - 0.5))));
+
+    return growth.points.findLast((point) => x(point.day) <= edge)?.downloads ?? 0;
+  };
   const path = growth.points
     .map((point, i) => `${i ? "L" : "M"}${x(point.day)} ${y(point.downloads)}`)
     .join(" ");
@@ -76,25 +84,12 @@ export function NpmDownloadsComposition({
         </div>
         <div className="shrink-0 text-left" style={{width: 400}}>
           <div className="text-base text-white/60 mb-3">Downloads in selected period</div>
-          <div
-            className="font-bold tabular-nums leading-none"
-            style={{
-              fontSize: Math.min(
-                64,
-                Math.floor(400 / (total.toLocaleString("en-US").length * 0.62)),
-              ),
-            }}
-          >
-            <NumberFlow
-              value={current?.downloads ?? 0}
-              locales="en-US"
-              format={{notation: "standard", maximumFractionDigits: 0}}
-              plugins={[continuous]}
-              animated
-              trend={1}
-              style={{fontSize: "inherit", fontWeight: "inherit"}}
-            />
-          </div>
+          <RollingNumber
+            value={counterValue(frame - (frame % 8))}
+            previous={counterValue(frame - (frame % 8) - 8)}
+            progress={Math.min(1, (frame % 8) / 6)}
+            maximum={total}
+          />
           <div className="text-base text-white/60 mt-3">
             {current ? formatDate(current.day) : period}
           </div>
