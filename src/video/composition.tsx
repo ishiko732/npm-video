@@ -207,7 +207,7 @@ export function NpmDownloadsComposition({
           <div className="py-20 text-center text-white/70">No download data available</div>
         )}
       </div>
-      <div className="text-sm text-white/40 mt-4">npmvideo.com</div>
+      {/* <div className="text-sm text-white/40 mt-4">npmvideo.com</div> */}
     </AbsoluteFill>
   );
 }
