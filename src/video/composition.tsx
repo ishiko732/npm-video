@@ -105,7 +105,7 @@ export function NpmDownloadsComposition({
       <div className="rounded-3xl border border-white/15 bg-white/5 px-6 py-5 flex-1 min-h-0">
         <div className="flex justify-between text-base text-white/70">
           <span>Cumulative downloads</span>
-          <span>{period} · starts at 0</span>
+          <span>{period} · cumulative downloads</span>
         </div>
         {growth.points.length ? (
           <>
